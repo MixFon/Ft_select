@@ -52,7 +52,7 @@ void	infill_args(t_select *sel, int ac, char **av)
 	sel->elem->cursor = 1;
 	sel->elem_cursor = sel->elem;
 	sel->max_len += 1;
-	ft_printf("sel->max_len = [%d]\n", sel->max_len);
+	//ft_printf("sel->max_len = [%d]\n", sel->max_len);
 }
 
 void	print_elem(t_elem *elem)
@@ -81,7 +81,7 @@ void	check_arguments(t_select *sel, int ac, char **av)
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
 	infill_args(sel, ac, av);
-	print_elem(sel->elem);
+	//print_elem(sel->elem);
 }
 
 int		hash_sum(char *buf)
@@ -91,13 +91,13 @@ int		hash_sum(char *buf)
 	key = 0;
 	while(*buf)
 		key += *(buf++);
-	ft_printf("key = {%d}\n", key);
+	//ft_printf("key = {%d}\n", key);
 	return (key);
 }
 
 void	press_esc(t_select *sel)
 {
-	ft_printf(tgetstr("ve", NULL));
+	ft_putstr_fd(tgetstr("ve", NULL), 2);
 	tcsetattr(0, TCSANOW, &sel->old_term);
 	exit(0);
 }
@@ -152,7 +152,7 @@ void	press_enter(t_select *sel)
 
 	i = -1;
 	elem = sel->elem;
-	ft_printf(tgetstr("cl", NULL));
+	ft_putstr_fd(tgetstr("cl", NULL), 2);
 	while (21)
 	{
 		if (elem->choosed)
@@ -160,8 +160,7 @@ void	press_enter(t_select *sel)
 		elem = elem->next;
 		if (elem == sel->elem)
 		{
-			ft_printf(tgetstr("le", NULL));
-			ft_putchar('\n');
+			ft_putstr_fd(tgetstr("le", NULL), 2);
 			press_esc(sel);
 		}
 	}
@@ -203,6 +202,22 @@ void	working_key(t_select *sel, int key)
 		press_enter(sel);
 }
 
+void	print_title(t_elem *elem, int max_len)
+{
+	int spaces;
+
+	spaces = max_len - ft_strlen(elem->title) + 1;
+	if (elem->cursor)
+		ft_putstr_fd(tgetstr("us", NULL), 2);
+	if (elem->choosed)
+		ft_putstr_fd(tgetstr("so", NULL), 2);
+	ft_putstr_fd(elem->title, 2);
+	ft_putstr_fd(tgetstr("ue", NULL), 2);
+	ft_putstr_fd(tgetstr("se", NULL), 2);
+	while (--spaces)
+		ft_putchar_fd(' ', 2);
+}
+
 void	print_elements(t_select *sel)
 {
 	t_elem	*elem;
@@ -212,22 +227,23 @@ void	print_elements(t_select *sel)
 	elem = sel->elem;
 	while (21)
 	{
-		if (elem->cursor)
-			ft_printf(tgetstr("us", NULL));
-		if (elem->choosed)
-			ft_printf(tgetstr("so", NULL));
-		ft_printf("%-*s", sel->max_len, elem->title);
+		print_title(elem, sel->max_len);
+		//ft_printf("%-*s", sel->max_len, elem->title);
 		if (++i == sel->columns)
 		{
-			ft_putchar('\n');
+			ft_putchar_fd('\n', 2);
 			i = -1;
 		}
-		ft_printf(tgetstr("ue", NULL));
-		ft_printf(tgetstr("se", NULL));
 		elem = elem->next;
 		if (elem == sel->elem)
 			return ;
 	}
+}
+
+int		putss(int buf)
+{
+	ft_putchar(buf);
+	return (0);
 }
 
 void	calculate_colum(t_select *sel)
@@ -244,8 +260,9 @@ void	calculate_colum(t_select *sel)
 		sel->columns = sel->count_elem;
 	else
 		sel->columns -= 2;
-	ft_printf("sel->count_elem = [%d]\n", sel->count_elem);
-	ft_printf("w_term = [%d] h_term = [%d]\n", sel->w_term, sel->h_term);
+	//ft_printf("STDIN_FILENO = [%d]\n", STDIN_FILENO);
+	//ft_printf("sel->count_elem = [%d]\n", sel->count_elem);
+	//ft_printf("w_term = [%d] h_term = [%d]\n", sel->w_term, sel->h_term);
 }
 
 void	work(t_select *sel)
@@ -253,7 +270,7 @@ void	work(t_select *sel)
 	int		key;
 	char	buf[4];
 
-	ft_printf(tgetstr("cl", NULL));
+	ft_putstr_fd(tgetstr("cl", NULL), 2);
 	key = hash_sum(buf);
 	calculate_colum(sel);
 	working_key(sel, key);
@@ -264,14 +281,21 @@ void	work(t_select *sel)
 
 void	seve_temp(t_select *sel)
 {
-	tcgetattr(0, &sel->old_term);
-	ft_printf(tgetstr("vi", NULL));
+	if (tcgetattr(STDIN_FILENO, &sel->old_term) < 0)
+		sys_err("Error tcgetattr");
+	ft_putstr_fd(tgetstr("vi", NULL), 2);
 	sel->new_term = sel->old_term;
 	sel->new_term.c_lflag &= (~ICANON);
 	sel->new_term.c_lflag &= (~ECHO);
 	sel->new_term.c_cc[VTIME] = 0;
 	sel->new_term.c_cc[VMIN] = 1;
-	tcsetattr(0, TCSANOW, &sel->new_term);
+	if (tcsetattr(STDIN_FILENO, TCSANOW, &sel->new_term) < 0)
+		sys_err("Error tcsetattr");
+}
+
+void	sig_winch(int signo)
+{
+	ft_printf("Hello.\n");
 }
 
 int		main(int ac, char **av)
@@ -280,6 +304,8 @@ int		main(int ac, char **av)
 
 	check_arguments(&sel, ac, av);
 	seve_temp(&sel);
+	if (signal(SIGWINCH, sig_winch) == SIG_ERR)
+		sys_err("Error signal");
 	while (1)
 		work(&sel);
 	return (0);
