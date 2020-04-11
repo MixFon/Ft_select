@@ -93,7 +93,6 @@ void	check_arguments(t_select *sel, int ac, char **av)
 	if (ac < 2)
 		sys_err("To many arguments.\n");
 	ft_memset(sel, 0, sizeof(t_select));
-	ft_memset(sel->spaces, ' ', SPACES - 1);
 	sel->name_term = getenv("TERM");
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
@@ -114,7 +113,7 @@ int		hash_sum(char *buf)
 
 void	press_esc(t_select *sel)
 {
-	ft_putstr_fd(tgetstr("ve", NULL), 2);
+	ft_putstr_fd(tgetstr("ve", NULL), STDERR_FILENO);
 	tcsetattr(STDERR_FILENO, TCSANOW, &sel->old_term);
 	exit(0);
 }
@@ -145,7 +144,7 @@ void	press_up(t_select *sel)
 
 	i = -1;
 	sel->elem_cursor->cursor = 0;
-	while (++i <= sel->columns)
+	while (++i < sel->columns)
 		sel->elem_cursor = sel->elem_cursor->prev;
 	sel->elem_cursor->cursor = 1;
 }
@@ -156,7 +155,7 @@ void	press_down(t_select *sel)
 
 	i = -1;
 	sel->elem_cursor->cursor = 0;
-	while (++i <= sel->columns)
+	while (++i < sel->columns)
 		sel->elem_cursor = sel->elem_cursor->next;
 	sel->elem_cursor->cursor = 1;
 
@@ -169,7 +168,7 @@ void	press_enter(t_select *sel)
 
 	i = -1;
 	elem = sel->elem;
-	ft_putstr_fd(tgetstr("cl", NULL), 2);
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
 	while (21)
 	{
 		if (elem->choosed)
@@ -177,7 +176,7 @@ void	press_enter(t_select *sel)
 		elem = elem->next;
 		if (elem == sel->elem)
 		{
-			ft_putstr_fd(tgetstr("le", NULL), 2);
+			ft_putstr_fd(tgetstr("le", NULL), STDERR_FILENO);
 			press_esc(sel);
 		}
 	}
@@ -229,12 +228,12 @@ void	print_title(t_elem *elem, int max_len)
 	line = ft_strnew(spaces);
 	ft_memset(line, ' ', spaces);
 	if (elem->cursor)
-		ft_putstr_fd(tgetstr("us", NULL), 2);
+		ft_putstr_fd(tgetstr("us", NULL), STDERR_FILENO);
 	if (elem->choosed)
-		ft_putstr_fd(tgetstr("so", NULL), 2);
-	ft_putstr_fd(elem->title, 2);
-	ft_putstr_fd(tgetstr("ue", NULL), 2);
-	ft_putstr_fd(tgetstr("se", NULL), 2);
+		ft_putstr_fd(tgetstr("so", NULL), STDERR_FILENO);
+	ft_putstr_fd(elem->title, STDERR_FILENO);
+	ft_putstr_fd(tgetstr("ue", NULL), STDERR_FILENO);
+	ft_putstr_fd(tgetstr("se", NULL), STDERR_FILENO);
 	write(2, line, spaces);
 	free(line);
 }
@@ -244,7 +243,7 @@ void	print_elements(t_select *sel)
 	t_elem	*elem;
 	int		i;
 
-	i = -1;
+	i = 0;
 	elem = sel->elem;
 	while (21)
 	{
@@ -252,8 +251,8 @@ void	print_elements(t_select *sel)
 		//ft_printf("%-*s", sel->max_len, elem->title);
 		if (++i == sel->columns)
 		{
-			ft_putchar_fd('\n', 2);
-			i = -1;
+			ft_putchar_fd('\n', STDERR_FILENO);
+			i = 0;
 		}
 		elem = elem->next;
 		if (elem == sel->elem)
@@ -261,35 +260,35 @@ void	print_elements(t_select *sel)
 	}
 }
 
-int		putss(int buf)
-{
-	ft_putchar(buf);
-	return (0);
-}
-
-int	calculate_colum(t_select *sel)
+int		calculate_colum(t_select *sel)
 {
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
 	sel->w_term = tgetnum("co");
 	sel->h_term = tgetnum("li");
 	if (sel->max_len >= sel->w_term) 
-	{
-		ft_putstr_fd("The terminal size is too small to display.\
-				Increase the width of the terminal.", 2);
 		return (1);
-	}
 	sel->columns = 1;
 	while (sel->columns * sel->max_len < sel->w_term)
 		sel->columns++;
 	if (sel->count_elem * sel->max_len < sel->w_term)
 		sel->columns = sel->count_elem;
 	else
-		sel->columns -= 2;
+		sel->columns -= 1;
+	//ft_printf("sel->colums = {%d}\n", sel->columns);
+	//ft_printf("div = {%d}\n", sel->count_elem / sel->columns);
+	if (sel->columns <= 1 && sel->h_term < sel->count_elem / sel->columns)
+		return (1);
 	return (0);
 	//ft_printf("STDIN_FILENO = [%d]\n", STDIN_FILENO);
 	//ft_printf("sel->count_elem = [%d]\n", sel->count_elem);
 	//ft_printf("w_term = [%d] h_term = [%d]\n", sel->w_term, sel->h_term);
+}
+
+void	print_error_size_window(void)
+{
+	ft_putstr_fd(TERM_SMAL, STDERR_FILENO);
+	ft_putstr_fd(INCREASE, STDERR_FILENO);
 }
 
 void	work(t_select *sel)
@@ -297,12 +296,13 @@ void	work(t_select *sel)
 	int		key;
 	char	buf[4];
 
-	ft_putstr_fd(tgetstr("cl", NULL), 2);
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
 	key = hash_sum(buf);
 	working_key(sel, key);
 	if (calculate_colum(sel))
-		return ;
-	print_elements(sel);
+		print_error_size_window();
+	else
+		print_elements(sel);
 	ft_memset(buf, 0, 4);
 	read(0, buf, 3);
 }
@@ -381,10 +381,6 @@ int		main(int ac, char **av)
 	check_arguments(&sel, ac, av);
 	seve_temp(&sel);
 	set_signals();
-	/*
-	if (signal(SIGWINCH, sig_winch) == SIG_ERR)
-		sys_err("Error signal");
-	*/
 	while (1)
 		work(&sel);
 	return (0);
