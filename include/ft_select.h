@@ -6,6 +6,11 @@
 # include "unistd.h"
 # include "termios.h"
 # include "stdlib.h"
+# include "sys/ioctl.h"
+
+# define SPACES		1000
+
+# define STR		"                                                    "
 
 # define K_LEFT		186
 # define K_RIGHT	185
@@ -38,6 +43,9 @@ typedef struct		s_select
 	struct termios	new_term;
 	t_elem			*elem;
 	t_elem			*elem_cursor;
+	char			spaces[1000];
 }					t_select;
 
+
+void	press_esc(t_select *sel);
 #endif

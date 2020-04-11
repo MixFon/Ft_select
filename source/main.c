@@ -24,13 +24,28 @@ void	to_loop_elements(t_select *sel)
 	sel->elem->prev = end;
 }
 
+void	removing_unnecessary_elements(t_select *sel)
+{
+	t_elem *elem;
+
+	if (sel->elem->title[0] == '\0')
+	{
+		elem = sel->elem;
+		if (sel->elem->next)
+			sel->elem = sel->elem->next;
+		else
+			exit(0);
+		free(elem->title);
+		free(elem);
+	}
+}
+
 void	infill_args(t_select *sel, int ac, char **av)
 {
 	t_elem	*temp;
 	int		max;
 	int		temp_len;
 
-	temp = NULL;
 	sel->count_elem = 1;
 	if (!sel->elem)
 		sel->elem = new_elem(av[--ac]);
@@ -48,10 +63,11 @@ void	infill_args(t_select *sel, int ac, char **av)
 		sel->count_elem++;
 		//ft_printf("arg = [%s]\n", av[ac]);
 	}
+	removing_unnecessary_elements(sel);
 	to_loop_elements(sel);
 	sel->elem->cursor = 1;
 	sel->elem_cursor = sel->elem;
-	sel->max_len += 1;
+	sel->max_len += 2;
 	//ft_printf("sel->max_len = [%d]\n", sel->max_len);
 }
 
@@ -77,6 +93,7 @@ void	check_arguments(t_select *sel, int ac, char **av)
 	if (ac < 2)
 		sys_err("To many arguments.\n");
 	ft_memset(sel, 0, sizeof(t_select));
+	ft_memset(sel->spaces, ' ', SPACES - 1);
 	sel->name_term = getenv("TERM");
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
@@ -98,7 +115,7 @@ int		hash_sum(char *buf)
 void	press_esc(t_select *sel)
 {
 	ft_putstr_fd(tgetstr("ve", NULL), 2);
-	tcsetattr(0, TCSANOW, &sel->old_term);
+	tcsetattr(STDERR_FILENO, TCSANOW, &sel->old_term);
 	exit(0);
 }
 
@@ -179,6 +196,7 @@ void	press_delete(t_select *sel)
 	sel->elem_cursor->prev = elem->prev;
 	elem->prev->next = sel->elem_cursor;
 	sel->elem_cursor->cursor = 1;
+	free(elem->title);
 	free(elem);
 }
 
@@ -204,9 +222,12 @@ void	working_key(t_select *sel, int key)
 
 void	print_title(t_elem *elem, int max_len)
 {
-	int spaces;
+	int		spaces;
+	char	*line;
 
-	spaces = max_len - ft_strlen(elem->title) + 1;
+	spaces = max_len - ft_strlen(elem->title);
+	line = ft_strnew(spaces);
+	ft_memset(line, ' ', spaces);
 	if (elem->cursor)
 		ft_putstr_fd(tgetstr("us", NULL), 2);
 	if (elem->choosed)
@@ -214,8 +235,8 @@ void	print_title(t_elem *elem, int max_len)
 	ft_putstr_fd(elem->title, 2);
 	ft_putstr_fd(tgetstr("ue", NULL), 2);
 	ft_putstr_fd(tgetstr("se", NULL), 2);
-	while (--spaces)
-		ft_putchar_fd(' ', 2);
+	write(2, line, spaces);
+	free(line);
 }
 
 void	print_elements(t_select *sel)
@@ -246,13 +267,18 @@ int		putss(int buf)
 	return (0);
 }
 
-void	calculate_colum(t_select *sel)
+int	calculate_colum(t_select *sel)
 {
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
 	sel->w_term = tgetnum("co");
 	sel->h_term = tgetnum("li");
-	sel->columns = sel->w_term / sel->max_len;
+	if (sel->max_len >= sel->w_term) 
+	{
+		ft_putstr_fd("The terminal size is too small to display.\
+				Increase the width of the terminal.", 2);
+		return (1);
+	}
 	sel->columns = 1;
 	while (sel->columns * sel->max_len < sel->w_term)
 		sel->columns++;
@@ -260,6 +286,7 @@ void	calculate_colum(t_select *sel)
 		sel->columns = sel->count_elem;
 	else
 		sel->columns -= 2;
+	return (0);
 	//ft_printf("STDIN_FILENO = [%d]\n", STDIN_FILENO);
 	//ft_printf("sel->count_elem = [%d]\n", sel->count_elem);
 	//ft_printf("w_term = [%d] h_term = [%d]\n", sel->w_term, sel->h_term);
@@ -272,8 +299,9 @@ void	work(t_select *sel)
 
 	ft_putstr_fd(tgetstr("cl", NULL), 2);
 	key = hash_sum(buf);
-	calculate_colum(sel);
 	working_key(sel, key);
+	if (calculate_colum(sel))
+		return ;
 	print_elements(sel);
 	ft_memset(buf, 0, 4);
 	read(0, buf, 3);
@@ -281,21 +309,69 @@ void	work(t_select *sel)
 
 void	seve_temp(t_select *sel)
 {
-	if (tcgetattr(STDIN_FILENO, &sel->old_term) < 0)
+	if (tcgetattr(STDERR_FILENO, &sel->old_term) < 0)
 		sys_err("Error tcgetattr");
-	ft_putstr_fd(tgetstr("vi", NULL), 2);
+	ft_putstr_fd(tgetstr("vi", NULL), STDERR_FILENO);
 	sel->new_term = sel->old_term;
 	sel->new_term.c_lflag &= (~ICANON);
 	sel->new_term.c_lflag &= (~ECHO);
 	sel->new_term.c_cc[VTIME] = 0;
 	sel->new_term.c_cc[VMIN] = 1;
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &sel->new_term) < 0)
+	if (tcsetattr(STDERR_FILENO, TCSANOW, &sel->new_term) < 0)
 		sys_err("Error tcsetattr");
+	//STDIN_FILENO
 }
 
-void	sig_winch(int signo)
+void	resizing_window(void)
 {
-	ft_printf("Hello.\n");
+	ft_printf("Resizing_window.\n");
+}
+
+void	close_windows(void)
+{
+	ft_printf("Close_windows.\n");
+	exit(0);
+}
+
+void	background_mode(void)
+{
+	signal(SIGTSTP, SIG_DFL);
+	ioctl(STDERR_FILENO, TIOCSTI, "\x1A");
+}
+
+void	working_signals(int sig)
+{
+	if (sig == SIGWINCH)
+		resizing_window();
+	else if (sig == SIGTSTP)
+		 background_mode();
+	else if (sig == SIGINT || sig == SIGABRT || sig == SIGSTOP
+			|| sig == SIGKILL || sig == SIGQUIT)
+		close_windows();
+	//signal(SIGTSTP, SIG_DFL);
+}
+
+/*
+** SIGWINCH - сигнал изменения окна.
+** SIGABRT	- посылается программе в результате вызова функции abort(3)
+** SIGINT	- Сигнал прерывания (Ctrl-C) с терминала. 
+** SIGSTOP	- Остановка выполнения процесса
+** SIGCONT	- Продолжить выполнение ранее остановленного процесса
+** SIGTSTP	- Сигнал остановки с терминала (Ctrl-Z).
+** SIGKILL	- Безусловное завершение
+** SIGQUIT	- Сигнал «Quit» с терминала (Ctrl-\)
+*/
+
+void	set_signals(void)
+{
+	signal(SIGWINCH, working_signals);
+	signal(SIGABRT, working_signals);
+	signal(SIGINT, working_signals);
+	signal(SIGSTOP, working_signals);
+	signal(SIGCONT, working_signals);
+	signal(SIGTSTP, working_signals);
+	signal(SIGKILL, working_signals);
+	signal(SIGQUIT, working_signals);
 }
 
 int		main(int ac, char **av)
@@ -304,8 +380,11 @@ int		main(int ac, char **av)
 
 	check_arguments(&sel, ac, av);
 	seve_temp(&sel);
+	set_signals();
+	/*
 	if (signal(SIGWINCH, sig_winch) == SIG_ERR)
 		sys_err("Error signal");
+	*/
 	while (1)
 		work(&sel);
 	return (0);
