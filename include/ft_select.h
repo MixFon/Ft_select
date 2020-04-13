@@ -8,9 +8,8 @@
 # include "stdlib.h"
 # include "sys/ioctl.h"
 
-# define SPACES		1000
-
-# define STR		"                                                    "
+# define TERM_SMAL	"The terminal size is too small to display.\n"
+# define INCREASE	"Increase the size of the terminal."
 
 # define K_LEFT		186
 # define K_RIGHT	185
@@ -38,14 +37,25 @@ typedef struct		s_select
 	int				h_term;
 	int				max_len;
 	int				columns;
+	int				bl_err_size	: 2;
 	int				count_elem;
 	struct termios	old_term;
 	struct termios	new_term;
 	t_elem			*elem;
 	t_elem			*elem_cursor;
-	char			spaces[1000];
 }					t_select;
 
+/*
+** Данная глобальная переменная используется для при отправке сигналов:
+**	- прехода в фоновый режим.
+**	- выхода из фонового режима.
+**	- изменения размера экрана.
+**	- принудительного завершения программы.
+*/
+
+t_select			*g_sel;
 
 void	press_esc(t_select *sel);
+void	set_signals(void);
+void	working_signals(int sig);
 #endif
