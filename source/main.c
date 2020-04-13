@@ -1,5 +1,9 @@
 #include "../include/ft_select.h"
 
+/*
+** Создает новый элемент листа.
+*/
+
 t_elem	*new_elem(char *title)
 {
 	t_elem *new;
@@ -13,6 +17,10 @@ t_elem	*new_elem(char *title)
 	return (new);
 }
 
+/*
+** Закольцовывает двусвязный список.
+*/
+
 void	to_loop_elements(t_select *sel)
 {
 	t_elem *end;
@@ -23,6 +31,10 @@ void	to_loop_elements(t_select *sel)
 	end->next = sel->elem;
 	sel->elem->prev = end;
 }
+
+/*
+** Удаляет элементы, содержащие пустые строки.
+*/
 
 void	removing_unnecessary_elements(t_select *sel)
 {
@@ -39,6 +51,10 @@ void	removing_unnecessary_elements(t_select *sel)
 		free(elem);
 	}
 }
+
+/*
+** Создает двусвязный список.
+*/
 
 void	infill_args(t_select *sel, int ac, char **av)
 {
@@ -98,6 +114,10 @@ void	check_arguments(t_select *sel, int ac, char **av)
 	infill_args(sel, ac, av);
 	//print_elem(sel->elem);
 }
+
+/*
+** Возвращает сумму символов.
+*/
 
 int		hash_sum(char *buf)
 {
@@ -183,6 +203,10 @@ void	press_enter(t_select *sel)
 		}
 	}
 }
+
+/*
+** Обновляет максимально длинное слово.
+*/
 
 void	calculate_max_len(t_select *sel)
 {
@@ -307,6 +331,11 @@ int		calculate_colum(t_select *sel)
 	return (0);
 }
 
+/*
+** Выбирает печатать элементы или сообшение об ошибке
+** или элементы.
+*/
+
 void	print_elem_or_error_size(t_select *sel)
 {
 	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
@@ -323,6 +352,11 @@ void	print_elem_or_error_size(t_select *sel)
 	}
 }
 
+/*
+** Основная программа в которой происходит чтение одного символа
+** обработка команд и петать элемнтов.
+*/
+
 void	work(t_select *sel)
 {
 	int		key;
@@ -338,6 +372,13 @@ void	work(t_select *sel)
 	}
 }
 
+/*
+** Сохроняет параметры терминала. Отключает видимость курсора.
+** Создает переменную параметров терминала, переводит терминал
+** в конанический режим, отключает эхо ввод, устанавливает
+** колличество вводимых символов в единицу.
+*/
+
 void	seve_temp(t_select *sel)
 {
 	if (tcgetattr(STDERR_FILENO, &sel->old_term) < 0)
@@ -350,14 +391,12 @@ void	seve_temp(t_select *sel)
 	sel->new_term.c_cc[VMIN] = 1;
 	if (tcsetattr(STDERR_FILENO, TCSANOW, &sel->new_term) < 0)
 		sys_err("Error tcsetattr");
-	//STDIN_FILENO
 }
 
 /*
-** Переводим программу в фоновый режим
-** с помощью SIG_DEF
-** SIG_DEF - стандартная реакция на сигнал,
-** которая предусмотрена системой
+** Переводим программу в фоновый режим с помощью SIG_DEF
+** SIG_DEF - стандартная реакция на сигнал, которая
+** предусмотрена системой.
 */
 
 void	background_mode(void)
@@ -368,6 +407,11 @@ void	background_mode(void)
 	signal(SIGTSTP, SIG_DFL);
 	ioctl(STDERR_FILENO, TIOCSTI, "\x1A");
 }
+
+/*
+** Функция вызыватеся при получении сигнала перехода из 
+** фонового режима.
+*/
 
 void	standart_mode(void)
 {
