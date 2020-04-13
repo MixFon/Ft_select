@@ -43,7 +43,6 @@ void	removing_unnecessary_elements(t_select *sel)
 void	infill_args(t_select *sel, int ac, char **av)
 {
 	t_elem	*temp;
-	int		max;
 	int		temp_len;
 
 	sel->count_elem = 1;
@@ -114,6 +113,7 @@ int		hash_sum(char *buf)
 void	press_esc(t_select *sel)
 {
 	ft_putstr_fd(tgetstr("ve", NULL), STDERR_FILENO);
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
 	tcsetattr(STDERR_FILENO, TCSANOW, &sel->old_term);
 	exit(0);
 }
@@ -177,14 +177,36 @@ void	press_enter(t_select *sel)
 		if (elem == sel->elem)
 		{
 			ft_putstr_fd(tgetstr("le", NULL), STDERR_FILENO);
-			press_esc(sel);
+			ft_putstr_fd(tgetstr("ve", NULL), STDERR_FILENO);
+			tcsetattr(STDERR_FILENO, TCSANOW, &sel->old_term);
+			exit(0);
 		}
 	}
 }
 
+void	calculate_max_len(t_select *sel)
+{
+	t_elem	*elem;
+	int		temp;
+
+	elem = sel->elem;
+	sel->max_len = ft_strlen(elem->title);
+	while(21)
+	{
+		elem = elem->next;
+		temp = ft_strlen(elem->title);
+		if (temp > sel->max_len)
+			sel->max_len = temp;
+		if (elem == sel->elem)
+			break ;
+	}
+	sel->max_len += 2;
+}
+
 void	press_delete(t_select *sel)
 {
-	t_elem *elem;
+	t_elem	*elem;
+	int		size;
 
 	elem = sel->elem_cursor;
 	if (sel->elem == sel->elem->next)
@@ -195,6 +217,10 @@ void	press_delete(t_select *sel)
 	sel->elem_cursor->prev = elem->prev;
 	elem->prev->next = sel->elem_cursor;
 	sel->elem_cursor->cursor = 1;
+	sel->count_elem--;
+	size = ft_strlen(elem->title);
+	if (size == sel->max_len - 2)
+		calculate_max_len(sel);
 	free(elem->title);
 	free(elem);
 }
@@ -203,6 +229,8 @@ void	working_key(t_select *sel, int key)
 {
 	if (key == K_ESC)
 		press_esc(sel);
+	else if (sel->bl_err_size)
+		return ;
 	else if (key == K_RIGHT)
 		press_right(sel);
 	else if (key == K_LEFT)
@@ -248,7 +276,6 @@ void	print_elements(t_select *sel)
 	while (21)
 	{
 		print_title(elem, sel->max_len);
-		//ft_printf("%-*s", sel->max_len, elem->title);
 		if (++i == sel->columns)
 		{
 			ft_putchar_fd('\n', STDERR_FILENO);
@@ -275,20 +302,25 @@ int		calculate_colum(t_select *sel)
 		sel->columns = sel->count_elem;
 	else
 		sel->columns -= 1;
-	//ft_printf("sel->colums = {%d}\n", sel->columns);
-	//ft_printf("div = {%d}\n", sel->count_elem / sel->columns);
-	if (sel->columns <= 1 && sel->h_term < sel->count_elem / sel->columns)
+	if (sel->h_term < sel->count_elem / sel->columns)
 		return (1);
 	return (0);
-	//ft_printf("STDIN_FILENO = [%d]\n", STDIN_FILENO);
-	//ft_printf("sel->count_elem = [%d]\n", sel->count_elem);
-	//ft_printf("w_term = [%d] h_term = [%d]\n", sel->w_term, sel->h_term);
 }
 
-void	print_error_size_window(void)
+void	print_elem_or_error_size(t_select *sel)
 {
-	ft_putstr_fd(TERM_SMAL, STDERR_FILENO);
-	ft_putstr_fd(INCREASE, STDERR_FILENO);
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
+	if (calculate_colum(sel))
+	{
+		ft_putstr_fd(TERM_SMAL, STDERR_FILENO);
+		ft_putstr_fd(INCREASE, STDERR_FILENO);
+		sel->bl_err_size = 1;
+	}
+	else
+	{
+		sel->bl_err_size = 0;
+		print_elements(sel);
+	}
 }
 
 void	work(t_select *sel)
@@ -296,15 +328,14 @@ void	work(t_select *sel)
 	int		key;
 	char	buf[4];
 
-	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
-	key = hash_sum(buf);
-	working_key(sel, key);
-	if (calculate_colum(sel))
-		print_error_size_window();
-	else
-		print_elements(sel);
-	ft_memset(buf, 0, 4);
-	read(0, buf, 3);
+	while (21)
+	{
+		key = hash_sum(buf);
+		working_key(sel, key);
+		print_elem_or_error_size(sel);
+		ft_memset(buf, 0, 4);
+		read(0, buf, 3);
+	}
 }
 
 void	seve_temp(t_select *sel)
@@ -322,33 +353,45 @@ void	seve_temp(t_select *sel)
 	//STDIN_FILENO
 }
 
-void	resizing_window(void)
-{
-	ft_printf("Resizing_window.\n");
-}
-
-void	close_windows(void)
-{
-	ft_printf("Close_windows.\n");
-	exit(0);
-}
+/*
+** Переводим программу в фоновый режим
+** с помощью SIG_DEF
+** SIG_DEF - стандартная реакция на сигнал,
+** которая предусмотрена системой
+*/
 
 void	background_mode(void)
 {
+	ft_putstr_fd(tgetstr("ve", NULL), STDERR_FILENO);
+	tcsetattr(STDERR_FILENO, TCSANOW, &g_sel->old_term);
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
 	signal(SIGTSTP, SIG_DFL);
 	ioctl(STDERR_FILENO, TIOCSTI, "\x1A");
+}
+
+void	standart_mode(void)
+{
+	ft_printf("Print elements\n");
+	signal(SIGTSTP, working_signals);
+	if (tcsetattr(STDERR_FILENO, TCSANOW, &g_sel->new_term) < 0)
+		sys_err("Error tcsetattr");
+	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
+	ft_putstr_fd(tgetstr("vi", NULL), STDERR_FILENO);
+	print_elem_or_error_size(g_sel);
+
 }
 
 void	working_signals(int sig)
 {
 	if (sig == SIGWINCH)
-		resizing_window();
+		print_elem_or_error_size(g_sel);
 	else if (sig == SIGTSTP)
-		 background_mode();
+		background_mode();
+	else if (sig == SIGCONT)
+		standart_mode();
 	else if (sig == SIGINT || sig == SIGABRT || sig == SIGSTOP
 			|| sig == SIGKILL || sig == SIGQUIT)
-		close_windows();
-	//signal(SIGTSTP, SIG_DFL);
+		press_esc(g_sel);
 }
 
 /*
@@ -378,10 +421,10 @@ int		main(int ac, char **av)
 {
 	t_select sel;
 
+	g_sel = &sel;
 	check_arguments(&sel, ac, av);
 	seve_temp(&sel);
 	set_signals();
-	while (1)
-		work(&sel);
+	work(&sel);
 	return (0);
 }
