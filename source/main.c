@@ -67,7 +67,7 @@ void	infill_args(t_select *sel, int ac, char **av)
 	sel->max_len = ft_strlen(av[ac]);
 	while (--ac)
 	{
-		if(!(temp_len = ft_strlen(av[ac])))
+		if (!(temp_len = ft_strlen(av[ac])))
 			continue;
 		if (temp_len > sel->max_len)
 			sel->max_len = temp_len;
@@ -76,14 +76,12 @@ void	infill_args(t_select *sel, int ac, char **av)
 		sel->elem->prev = temp;
 		sel->elem = temp;
 		sel->count_elem++;
-		//ft_printf("arg = [%s]\n", av[ac]);
 	}
 	removing_unnecessary_elements(sel);
 	to_loop_elements(sel);
 	sel->elem->cursor = 1;
 	sel->elem_cursor = sel->elem;
 	sel->max_len += 2;
-	//ft_printf("sel->max_len = [%d]\n", sel->max_len);
 }
 
 void	print_elem(t_elem *elem)
@@ -112,7 +110,6 @@ void	check_arguments(t_select *sel, int ac, char **av)
 	if (!(tgetent(NULL, sel->name_term)))
 		sys_err("Error terminal.\n");
 	infill_args(sel, ac, av);
-	//print_elem(sel->elem);
 }
 
 /*
@@ -122,11 +119,10 @@ void	check_arguments(t_select *sel, int ac, char **av)
 int		hash_sum(char *buf)
 {
 	int key;
-	
+
 	key = 0;
-	while(*buf)
+	while (*buf)
 		key += *(buf++);
-	//ft_printf("key = {%d}\n", key);
 	return (key);
 }
 
@@ -178,7 +174,6 @@ void	press_down(t_select *sel)
 	while (++i < sel->columns)
 		sel->elem_cursor = sel->elem_cursor->next;
 	sel->elem_cursor->cursor = 1;
-
 }
 
 void	press_enter(t_select *sel)
@@ -215,7 +210,7 @@ void	calculate_max_len(t_select *sel)
 
 	elem = sel->elem;
 	sel->max_len = ft_strlen(elem->title);
-	while(21)
+	while (21)
 	{
 		elem = elem->next;
 		temp = ft_strlen(elem->title);
@@ -317,7 +312,7 @@ int		calculate_colum(t_select *sel)
 		sys_err("Error terminal.\n");
 	sel->w_term = tgetnum("co");
 	sel->h_term = tgetnum("li");
-	if (sel->max_len >= sel->w_term) 
+	if (sel->max_len >= sel->w_term)
 		return (1);
 	sel->columns = 1;
 	while (sel->columns * sel->max_len < sel->w_term)
@@ -409,7 +404,7 @@ void	background_mode(void)
 }
 
 /*
-** Функция вызыватеся при получении сигнала перехода из 
+** Функция вызыватеся при получении сигнала перехода из
 ** фонового режима.
 */
 
@@ -422,7 +417,6 @@ void	standart_mode(void)
 	ft_putstr_fd(tgetstr("cl", NULL), STDERR_FILENO);
 	ft_putstr_fd(tgetstr("vi", NULL), STDERR_FILENO);
 	print_elem_or_error_size(g_sel);
-
 }
 
 void	working_signals(int sig)
@@ -441,7 +435,7 @@ void	working_signals(int sig)
 /*
 ** SIGWINCH - сигнал изменения окна.
 ** SIGABRT	- посылается программе в результате вызова функции abort(3)
-** SIGINT	- Сигнал прерывания (Ctrl-C) с терминала. 
+** SIGINT	- Сигнал прерывания (Ctrl-C) с терминала.
 ** SIGSTOP	- Остановка выполнения процесса
 ** SIGCONT	- Продолжить выполнение ранее остановленного процесса
 ** SIGTSTP	- Сигнал остановки с терминала (Ctrl-Z).
