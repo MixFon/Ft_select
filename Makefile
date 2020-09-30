@@ -15,8 +15,8 @@ NAME = ft_select
 LIBDIR = ./libft
 
 FILE_C = main.c
-#-Wall -Wextra -Werror 
-FLAGS = -I libft -I include 
+
+FLAGS = -Wall -Wextra -Werror -I libft -I include 
 
 FLIB = -L ./libft -lftprintf 
 
@@ -31,7 +31,7 @@ OBJ = $(addprefix $(DIROBJ), $(FILE_C:.c=.o))
 all : $(NAME)
 
 $(NAME): $(DIROBJ) $(OBJ) 
-	#make -C $(LIBDIR)
+	make -C $(LIBDIR)
 	gcc $(FLAGS) $(OBJ) $(FLIB) $(FMLXLIB) -ltermcap -o $(NAME)
 
 $(DIROBJ)%.o : $(DIRC)%.c
