@@ -6,7 +6,7 @@
 #    By: widraugr <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2018/11/29 13:07:44 by widraugr          #+#    #+#              #
-#    Updated: 2020/02/20 17:15:27 by widraugr         ###   ########.fr        #
+#    Updated: 2020/10/01 09:34:55 by mixfon           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,7 +14,12 @@ NAME = ft_select
 
 LIBDIR = ./libft
 
-FILE_C = main.c
+FILE_C = check_arguments.c\
+		 new_elem.c\
+		 press_delete.c\
+		 press_space.c\
+		 print_elem_or_error_size.c\
+		 working_signals.c
 
 FLAGS = -Wall -Wextra -Werror -I libft -I include 
 
@@ -45,6 +50,7 @@ clean:
 	
 fclean: clean
 	/bin/rm -f $(NAME)
-	#make fclean -C $(LIBDIR)
+	/bin/rm -rf *.dSYM
+	make fclean -C $(LIBDIR)
 	
 re: fclean all 
